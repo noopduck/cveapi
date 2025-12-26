@@ -31,10 +31,26 @@ Go service that scans a directory of CVE JSON documents, builds a Bleve search i
 | `BasePath`   | Required. Directory that holds CVE JSON files to index. |
 | `IndexPath`  | Where to store the Bleve index. Defaults to `.index` under `BasePath` if not set. If it matches `BasePath`, it is automatically moved to a hidden `.index` folder inside `BasePath`. |
 | `StorePath`  | Path to the BoltDB file that stores the full CVE documents and file metadata. Defaults to `store.db` under `BasePath` when omitted. |
+| `ignoreFiles | array of files to ignore, "somefile.txt"
+| `AsyncIndex`| true/false, Allow web server to be reachable while initial indexing is ongoing. |
 
 The repository includes a sample `config.json`. Adjust `BasePath` to your dataset before running.
 
-## API
+```json
+{
+    "ServerPort": "8080",
+    "EnableTLS": false,
+    "CertFile": "/opt/fullchain.pem",
+    "KeyFile": "/opt/privkey.pem",
+    "BasePath": "examples/",
+    "IndexPath": ".index",
+    "StorePath": "store.db",
+    "ignoreFiles": [
+        "somefile.txt"
+    ],
+    "AsyncIndex": false
+}
+```I
 
 All endpoints use query parameters and return JSON.
 
