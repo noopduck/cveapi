@@ -1,0 +1,90 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CVE API",
+    "version": "1.0.0",
+    "description": "Simple CVE listing and search API"
+  },
+  "paths": {
+    "/list": {
+      "get": {
+        "summary": "List latest CVEs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "default": 50 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of CVE records",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CVERecord" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/findID": {
+      "get": {
+        "summary": "Find CVE by ID",
+        "parameters": [
+          { "name": "search", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of matching CVE records",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CVERecord" } } } }
+          }
+        }
+      }
+    },
+    "/findText": {
+      "get": {
+        "summary": "Full-text search across CVE fields",
+        "parameters": [
+          { "name": "search", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of matching CVE records",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CVERecord" } } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CVERecord": {
+        "type": "object",
+        "properties": {
+          "dataType": { "type": "string" },
+          "dataVersion": { "type": "string" },
+          "cveMetadata": {
+            "type": "object",
+            "properties": {
+              "cveId": { "type": "string" },
+              "datePublished": { "type": "string", "format": "date-time" }
+            }
+          },
+          "containers": {
+            "type": "object",
+            "properties": {
+              "cna": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "descriptions": { "type": "array", "items": { "type": "object", "properties": { "lang": { "type": "string" }, "value": { "type": "string" } } } }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+.cache/
+.index/
+.tmpcount/
+store.db
+cvelistV5
+/cveapi
+config.json
