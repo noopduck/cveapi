@@ -50,7 +50,7 @@ The repository includes a sample `config.json`. Adjust `BasePath` to your datase
     ],
     "AsyncIndex": false
 }
-```I
+```
 
 All endpoints use query parameters and return JSON.
 
