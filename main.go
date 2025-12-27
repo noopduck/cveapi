@@ -122,8 +122,10 @@ func (s *Server) FindCVEIDHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Search by ID in the index
-	result, err := s.index.Search("id:" + id)
+	// Search by cve ID field in the index (exact match)
+	// Use quoted value to avoid parsing issues in the query string parser
+	query := fmt.Sprintf("cveMetadata.cveId:%q", id)
+	result, err := s.index.Search(query)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("search error: %v", err), http.StatusInternalServerError)
 		return
