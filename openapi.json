@@ -8,13 +8,14 @@
   "paths": {
     "/list": {
       "get": {
-        "summary": "List latest CVEs",
+        "summary": "List CVEs with optional filters",
         "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": { "type": "integer", "default": 50 }
-          }
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["published","score"] }, "description": "Sort by published date or score" },
+          { "name": "minScore", "in": "query", "schema": { "type": "number" }, "description": "Minimum score (inclusive)" },
+          { "name": "maxScore", "in": "query", "schema": { "type": "number" }, "description": "Maximum score (inclusive)" },
+          { "name": "year", "in": "query", "schema": { "type": "integer" }, "description": "Published year to filter by" },
+          { "name": "scoreVersion", "in": "query", "schema": { "type": "string", "enum": ["v3.1","v4.0","v3.0","v2.0","effective"] }, "description": "Which metric to use for score-based filtering/sorting" }
         ],
         "responses": {
           "200": {

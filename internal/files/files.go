@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -105,8 +106,29 @@ func FindByFilename(root, pattern string) ([]CVERecord, error) {
 // CollectLatest returns up to 'limit' CVERecords sorted by DatePublished descending.
 // If limit <= 0 it defaults to 50.
 func CollectLatest(root string, limit int) ([]CVERecord, error) {
+	var all []CVERecord
+
+	// If limit <= 0 treat as no limit: collect all records then sort
 	if limit <= 0 {
-		limit = 50
+		err := TraverseDir(root, func(path string, d fs.DirEntry) error {
+			rec, err := ReadFile(path)
+			if err != nil {
+				Logger.Printf("warning: skipping %s: %v", path, err)
+				return nil
+			}
+			all = append(all, rec)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		// sort descending by DatePublished
+		sort.Slice(all, func(i, j int) bool {
+			return all[i].CveMetadata.DatePublished.After(all[j].CveMetadata.DatePublished)
+		})
+
+		return all, nil
 	}
 
 	// Use package-level min-heap to keep at most `limit` items while streaming files.

@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,11 +49,55 @@ func Contains(arr []string, comparator string) bool {
 }
 
 func (s *Server) ListCVEHandler(w http.ResponseWriter, r *http.Request) {
-	// Return top 50 latest CVEs. Prefer index-backed listing for better performance
-	records, err := s.index.ListLatest(50)
+	// Parse query parameters
+	q := r.URL.Query()
+	sortBy := q.Get("sort") // "published" or "score"
+
+	limit := 50
+	if l := q.Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	year := 0
+	if y := q.Get("year"); y != "" {
+		if v, err := strconv.Atoi(y); err == nil && v > 0 {
+			year = v
+		}
+	}
+
+	// Validate year: require a reasonable 4-digit year. If invalid, return empty result.
+	if year != 0 {
+		currentYear := time.Now().Year()
+		if year < 1000 || year > currentYear+1 {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
+			return
+		}
+	}
+
+	minScore := math.NaN()
+	if ms := q.Get("minScore"); ms != "" {
+		if v, err := strconv.ParseFloat(ms, 64); err == nil {
+			minScore = v
+		}
+	}
+
+	maxScore := math.NaN()
+	if ms := q.Get("maxScore"); ms != "" {
+		if v, err := strconv.ParseFloat(ms, 64); err == nil {
+			maxScore = v
+		}
+	}
+
+	scoreVersion := q.Get("scoreVersion") // e.g. v3.1, v4.0, effective
+
+	// Use the index-backed filtered listing
+	records, err := s.index.ListFiltered(limit, sortBy, year, minScore, maxScore, scoreVersion)
 	if err != nil {
 		// Fall back to file-based collection if index listing fails
-		recordsFile, ferr := files.CollectLatest(s.config.BasePath, 50)
+		recordsFile, ferr := files.CollectLatest(s.config.BasePath, limit)
 		if ferr != nil {
 			http.Error(w, fmt.Sprintf("error collecting CVEs: %v; fallback error: %v", err, ferr), http.StatusInternalServerError)
 			return

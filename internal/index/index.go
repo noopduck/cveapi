@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"cveapi/internal/files"
 
@@ -189,7 +191,11 @@ func (idx *Index) Reindex() error {
 // sorted by DatePublished descending. If limit <= 0 it defaults to 50.
 func (idx *Index) ListLatest(limit int) ([]files.CVERecord, error) {
 	if limit <= 0 {
-		limit = 50
+		if cnt, err := idx.index.DocCount(); err == nil && cnt > 0 {
+			limit = int(cnt)
+		} else {
+			limit = 50
+		}
 	}
 
 	// Use Bleve to fetch the latest documents sorted by CveMetadata.DatePublished.
@@ -251,6 +257,129 @@ func (idx *Index) ListLatest(limit int) ([]files.CVERecord, error) {
 	}
 
 	return out, nil
+}
+
+// ListFiltered returns CVE records matching provided filters. Parameters:
+//   - limit: maximum results to return (<=0 means 50)
+//   - sortBy: "published" or "score"
+//   - year: published year (0 = disabled)
+//   - minScore, maxScore: score range (NaN = disabled)
+//   - scoreVersion: "v3.1","v4.0","v3.0","v2.0","effective"
+func (idx *Index) ListFiltered(limit int, sortBy string, year int, minScore, maxScore float64, scoreVersion string) ([]files.CVERecord, error) {
+	if limit <= 0 {
+		if cnt, err := idx.index.DocCount(); err == nil && cnt > 0 {
+			limit = int(cnt)
+		} else {
+			limit = 50
+		}
+	}
+
+	// Build base query (match all) and collect filter queries into a BooleanQuery
+	matchAll := bleve.NewMatchAllQuery()
+	bq := bleve.NewBooleanQuery()
+	var hasFilters bool
+
+	// Year filter -> date range for cveMetadata.datePublished
+	if year > 0 {
+		fromStr := fmt.Sprintf("%04d-01-01T00:00:00Z", year)
+		toStr := fmt.Sprintf("%04d-01-01T00:00:00Z", year+1)
+		fromT, _ := time.Parse(time.RFC3339, fromStr)
+		toT, _ := time.Parse(time.RFC3339, toStr)
+		drq := bleve.NewDateRangeQuery(fromT, toT)
+		drq.SetField("cveMetadata.datePublished")
+		bq.AddMust(drq)
+		hasFilters = true
+	}
+
+	// Score field mapping
+	versionField := func(ver string) string {
+		switch ver {
+		case "v4.0", "v4":
+			return "containers.cna.metrics.cvssV4_0.baseScore"
+		case "v3.1", "v3":
+			return "containers.cna.metrics.cvssV3_1.baseScore"
+		case "v3.0":
+			return "containers.cna.metrics.cvssV3_0.baseScore"
+		case "v2.0":
+			return "containers.cna.metrics.cvssV2_0.baseScore"
+		default:
+			return ""
+		}
+	}
+
+	scoreField := ""
+	if scoreVersion == "effective" || scoreVersion == "" {
+		// prefer v4, then v3.1, then v3.0, then v2.0
+		scoreField = versionField("v4.0")
+		if scoreField == "" {
+			scoreField = versionField("v3.1")
+		}
+	} else {
+		scoreField = versionField(scoreVersion)
+	}
+
+	// numeric score range
+	if !isNaN(minScore) || !isNaN(maxScore) {
+		var minPtr, maxPtr *float64
+		if !isNaN(minScore) {
+			minPtr = &minScore
+		}
+		if !isNaN(maxScore) {
+			maxPtr = &maxScore
+		}
+		if scoreField != "" {
+			nrq := bleve.NewNumericRangeQuery(minPtr, maxPtr)
+			nrq.SetField(scoreField)
+			bq.AddMust(nrq)
+			hasFilters = true
+		}
+	}
+
+	// Build search request. If filters were added, include matchAll as a must
+	var req *bleve.SearchRequest
+	if hasFilters {
+		bq.AddMust(matchAll)
+		req = bleve.NewSearchRequestOptions(bq, limit, 0, false)
+	} else {
+		req = bleve.NewSearchRequestOptions(matchAll, limit, 0, false)
+	}
+
+	// Sorting
+	switch strings.ToLower(sortBy) {
+	case "score":
+		if scoreField != "" {
+			req.SortBy([]string{"-" + scoreField})
+		} else {
+			req.SortBy([]string{"-cveMetadata.datePublished"})
+		}
+	default:
+		req.SortBy([]string{"-cveMetadata.datePublished"})
+	}
+
+	// Execute search
+	res, err := idx.index.Search(req)
+	if err == nil {
+		out := make([]files.CVERecord, 0, len(res.Hits))
+		for _, hit := range res.Hits {
+			b, err := idx.store.Get(hit.ID)
+			if err != nil {
+				continue
+			}
+			var rec files.CVERecord
+			if err := json.Unmarshal(b, &rec); err != nil {
+				continue
+			}
+			out = append(out, rec)
+		}
+		return out, nil
+	}
+
+	// fallback to unfiltered listing behavior if search fails
+	return idx.ListLatest(limit)
+}
+
+func isNaN(f float64) bool {
+	return f != f
 }
 
 // SetFileMeta saves metadata for a given file path.
