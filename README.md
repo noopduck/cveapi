@@ -54,17 +54,16 @@ The repository includes a sample `config.json`. Adjust `BasePath` to your datase
 
 All endpoints use query parameters and return JSON.
 
-- `GET /list` — Returns up to 50 most recent CVEs (ordered by `datePublished`).
- - `GET /list` — Returns CVE records matching optional query parameters. By default returns up to 50 most recent CVEs (ordered by `datePublished`).
+- `GET /list` — Returns CVE records. By default returns up to `50` most recent CVEs (ordered by `datePublished`). Supports filtering and sorting via query parameters (see below).
 
 Query parameters supported on `/list`:
 
-- `sort` — `published` (default) or `score`. When `score` is used, `scoreVersion` determines which numeric score field to use.
+- `sort` — `published` (default) or `score`.
 - `minScore` — float, inclusive minimum score (e.g., `8.0`).
 - `maxScore` — float, inclusive maximum score.
-- `limit` — integer, maximum number of results to return (default `50`).
-- `year` — integer, published year to filter by (e.g., `2025`).
-- `scoreVersion` — one of `v3.1`, `v4.0`, `v3.0`, `v2.0`, or `effective` (default). `effective` prefers newer score versions (v4.0 then v3.1).
+- `limit` — integer, maximum number of results to return (default `50`). Setting `limit<=0` returns all matching records (no cap). For safety we recommend keeping `limit` below `5000` to avoid heavy requests.
+- `year` — integer, published year to filter by (e.g., `2025`). Note: the CVE identifier year (e.g., `CVE-2024-xxxx`) can differ from the `datePublished` year — use `year` to filter by the actual published date.
+- `scoreVersion` — one of `v3.1`, `v4.0`, `v3.0`, `v2.0`, or `effective` (default). `effective` prefers `v3.1` and falls back to `v4.0` (this choice is deliberate — `v3.1` is the commonly used operational default; changeable via the `scoreVersion` parameter).
 
 Example:
 
