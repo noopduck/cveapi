@@ -63,11 +63,18 @@ func NewIndex(indexPath, storePath string) (*Index, error) {
 
 			// Create a document mapping and ensure date fields are treated as datetime fields
 			dateMapping := bleve.NewDateTimeFieldMapping()
+			dateMapping.Store = true
+			dateMapping.IncludeInAll = false
+
+			// store CVE id for quick retrieval from stored fields
+			idMapping := bleve.NewTextFieldMapping()
+			idMapping.Store = true
 			docMapping := bleve.NewDocumentMapping()
 			// Bleve flattens JSON field names to lowercase dotted paths (see bleve check)
 			docMapping.AddFieldMappingsAt("cveMetadata.datePublished", dateMapping)
 			docMapping.AddFieldMappingsAt("cveMetadata.dateUpdated", dateMapping)
 			docMapping.AddFieldMappingsAt("cveMetadata.dateReserved", dateMapping)
+			docMapping.AddFieldMappingsAt("cveMetadata.cveId", idMapping)
 
 			// Use the document mapping as the default so nested structs are covered
 			mapping.DefaultMapping = docMapping
@@ -264,4 +271,15 @@ func (idx *Index) DeleteFileMeta(path string) error {
 // ForEachFileMeta iterates over file metadata entries.
 func (idx *Index) ForEachFileMeta(fn func(path string, meta FileMeta) error) error {
 	return idx.store.ForEachMeta(fn)
+}
+
+// MappingJSON returns the Bleve index mapping marshaled as JSON.
+func (idx *Index) MappingJSON() ([]byte, error) {
+	m := idx.index.Mapping()
+	return json.MarshalIndent(m, "", "  ")
+}
+
+// Fields returns the list of field names present in the underlying Bleve index.
+func (idx *Index) Fields() ([]string, error) {
+	return idx.index.Fields()
 }

@@ -56,6 +56,28 @@
         }
       }
     }
+    ,"/index/fields": {
+      "get": {
+        "summary": "List Bleve indexed field names",
+        "responses": {
+          "200": {
+            "description": "Array of field name strings",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "type": "string" } } } }
+          }
+        }
+      }
+    },
+    "/index/mappings": {
+      "get": {
+        "summary": "Return the Bleve index mapping as JSON",
+        "responses": {
+          "200": {
+            "description": "Bleve index mapping JSON",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          }
+        }
+      }
+    }
   },
   "components": {
     "schemas": {

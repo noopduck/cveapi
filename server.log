@@ -1,0 +1,6 @@
+nohup: ignoring input
+2025/12/27 14:27:59 Parsed Configuration: {ServerPort:8080 EnableTLS:false CertFile:/opt/fullchain.pem KeyFile:/opt/privkey.pem BasePath:examples/ IndexPath:.index StorePath:store.db IgnoreFiles:[somefile.txt] AsyncIndex:true}
+2025/12/27 14:27:59 Server port selected: 8080
+2025/12/27 14:27:59 TLS is disabled, starting HTTP server.
+2025/12/27 14:27:59 Index build complete. Indexed 1 documents.
+signal: terminated

@@ -57,10 +57,19 @@ All endpoints use query parameters and return JSON.
 - `GET /list` — Returns up to 50 most recent CVEs (ordered by `datePublished`).
 - `GET /findID?search=<CVE-ID>` — Searches by CVE identifier. Returns results from the index/store.
 - `GET /findText?search=<query>` — Full-text search against the Bleve index.
+- `GET /index/fields` — Returns an array of the actual field names Bleve stores in the index (dotted, lower-cased paths).
+- `GET /index/mappings` — Returns the Bleve index mapping as JSON (useful to inspect field types and stored settings).
 
 Additional developer endpoints:
 - `GET /openapi.json` — OpenAPI (Swagger) spec for the API.
 - `GET /docs` — Interactive Swagger UI for the API.
+
+Examples:
+
+```bash
+curl http://localhost:8080/index/fields        # list indexed field names
+curl http://localhost:8080/index/mappings      # get mapping JSON
+```
 
 ## Data expectations
 

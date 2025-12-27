@@ -155,6 +155,35 @@ func (s *Server) FindCVEHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(out)
 }
 
+// IndexMappingsHandler returns the Bleve index mapping as JSON (no external CLI).
+func (s *Server) IndexMappingsHandler(w http.ResponseWriter, r *http.Request) {
+	b, err := s.index.MappingJSON()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to get mapping: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
+}
+
+// IndexFieldsHandler returns the list of actual field names stored in the Bleve index.
+func (s *Server) IndexFieldsHandler(w http.ResponseWriter, r *http.Request) {
+	fields, err := s.index.Fields()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to get index fields: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	out, err := json.MarshalIndent(fields, "", "  ")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to marshal fields: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(out)
+}
+
 func readConfigurationFile() Config {
 	config, err := os.ReadFile("config.json")
 	if err != nil {
@@ -469,6 +498,8 @@ func main() {
 	http.HandleFunc("/list", server.ListCVEHandler)
 	http.HandleFunc("/findID", server.FindCVEIDHandler)
 	http.HandleFunc("/findText", server.FindCVEHandler)
+	http.HandleFunc("/index/mappings", server.IndexMappingsHandler)
+	http.HandleFunc("/index/fields", server.IndexFieldsHandler)
 
 	// Serve OpenAPI spec and Swagger UI
 	http.HandleFunc("/openapi.json", func(w http.ResponseWriter, r *http.Request) {
