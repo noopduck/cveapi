@@ -20,14 +20,15 @@ import (
 )
 
 type Config struct {
-	ServerPort string `json:"ServerPort"`
-	EnableTLS  bool   `json:"EnableTLS"`
-	CertFile   string `json:"CertFile"`
-	KeyFile    string `json:"KeyFile"`
-	BasePath   string `json:"BasePath"`
-	IndexPath  string `json:"IndexPath"`
-	StorePath  string `json:"StorePath"`
-	AsyncIndex bool   `json:"AsyncIndex,omitempty"`
+	ServerPort  string   `json:"ServerPort"`
+	EnableTLS   bool     `json:"EnableTLS"`
+	CertFile    string   `json:"CertFile"`
+	KeyFile     string   `json:"KeyFile"`
+	BasePath    string   `json:"BasePath"`
+	IndexPath   string   `json:"IndexPath"`
+	StorePath   string   `json:"StorePath"`
+	IgnoreFiles []string `json:"IgnoreFiles,omitempty"`
+	AsyncIndex  bool     `json:"AsyncIndex,omitempty"`
 }
 
 type Server struct {

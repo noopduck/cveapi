@@ -1,6 +1,6 @@
 # CVE API
 
-Go service that scans a directory of CVE JSON documents, builds a Bleve search index with a BoltDB backing store, and exposes a small HTTP API for listing and querying CVEs.
+Go service that scans a directory of CVE JSON documents, builds a Bleve search index with a BoltDB (bbolt) backing store, and exposes a small HTTP API for listing and querying CVEs.
 
 - Indexes CVE 5.x JSON files on startup and keeps the index in sync every 15 minutes.
 - Serves lightweight endpoints for listing recent CVEs and searching by ID or free text.
@@ -30,9 +30,9 @@ Go service that scans a directory of CVE JSON documents, builds a Bleve search i
 | `KeyFile`    | Path to the TLS key (required when TLS is enabled). |
 | `BasePath`   | Required. Directory that holds CVE JSON files to index. |
 | `IndexPath`  | Where to store the Bleve index. Defaults to `.index` under `BasePath` if not set. If it matches `BasePath`, it is automatically moved to a hidden `.index` folder inside `BasePath`. |
-| `StorePath`  | Path to the BoltDB file that stores the full CVE documents and file metadata. Defaults to `store.db` under `BasePath` when omitted. |
-| `ignoreFiles | array of files to ignore, "somefile.txt"
-| `AsyncIndex`| true/false, Allow web server to be reachable while initial indexing is ongoing. |
+| `StorePath`  | Path to the BoltDB (bbolt) file that stores the full CVE documents and file metadata. Defaults to `store.db` under `BasePath` when omitted. |
+| `IgnoreFiles` | Array of filenames to ignore when scanning (optional). |
+| `AsyncIndex` | `true`/`false`. When `true` the server starts immediately and the initial indexing runs in the background; when `false` indexing completes before the server becomes available. Defaults to `false`. |
 
 The repository includes a sample `config.json`. Adjust `BasePath` to your dataset before running.
 
@@ -45,7 +45,7 @@ The repository includes a sample `config.json`. Adjust `BasePath` to your datase
     "BasePath": "examples/",
     "IndexPath": ".index",
     "StorePath": "store.db",
-    "ignoreFiles": [
+    "IgnoreFiles": [
         "somefile.txt"
     ],
     "AsyncIndex": false
@@ -55,12 +55,21 @@ The repository includes a sample `config.json`. Adjust `BasePath` to your datase
 All endpoints use query parameters and return JSON.
 
 - `GET /list` — Returns up to 50 most recent CVEs (ordered by `datePublished`).
-- `GET /findID?search=<CVE-ID>` — Searches by CVE identifier. Falls back to scanning files if the index misses a match.
-- `GET /findText?search=<query>` — Full-text search against the Bleve index; falls back to scanning files if the index yields no results.
+- `GET /findID?search=<CVE-ID>` — Searches by CVE identifier. Returns results from the index/store.
+- `GET /findText?search=<query>` — Full-text search against the Bleve index.
+
+Additional developer endpoints:
+- `GET /openapi.json` — OpenAPI (Swagger) spec for the API.
+- `GET /docs` — Interactive Swagger UI for the API.
 
 ## Data expectations
 
 The indexer assumes CVE 5.x JSON structure. Files are read from `BasePath` recursively and any file with a `.json` extension is considered.
+
+Implementation notes:
+- The project uses Bleve for full-text search and `go.etcd.io/bbolt` (bbolt) as the persistent store for full documents and file metadata.
+- Bleve stores fields using dotted, lower-cased JSON paths (for example `cveMetadata.datePublished`) — if you need to inspect the index, the `bleve` CLI is helpful (`bleve check`, `bleve dump mapping`, `bleve query`).
+- To apply mapping changes you must rebuild the Bleve index (delete the index directory and restart, or use the program's `Reindex` behavior if provided).
 
 ## Development notes
 
