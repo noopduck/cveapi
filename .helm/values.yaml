@@ -1,0 +1,90 @@
+replicaCount: 1
+
+image:
+repository: <SET_YOUR_REPO_HERE>/cveapi/cveapi
+  tag: latest
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: false
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+
+service:
+  type: ClusterIP
+  port: 443
+
+ingress:
+  enabled: false
+  className: <YOUR_INGRESS_CONTROLLER_CLASS_HERE>
+  annotations:
+    kubernetes.io/ingress.class: nginx-internet
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: <CERTMANAGER_TYPE>
+  host: cveapi.example.com
+  tls:
+    enabled: true
+    secretName: cveapi-example-com-tls
+
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteMany
+  size: 10Gi
+  storageClassName: <YOUR_STORAGE_CLASS_NAME>
+  mountPath: /data
+
+config:
+  ServerPort: "443"
+  EnableTLS: false
+  CertFile: ""
+  KeyFile: ""
+  BasePath: "/data/cvelist"
+  IndexPath: "/data/.index"
+  StorePath: "/data/store.db"
+  IgnoreFiles: [ "deltaLog.json" ]
+  AsyncIndex: true
+
+gitRepo:
+  url: https://github.com/CVEProject/cvelistV5.git
+  branch: main
+  targetPath: /data/cvelist
+  image: alpine/git:2.45.2
+  pullPolicy: IfNotPresent
+  pullIntervalSeconds: 900
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+  resources: {}
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
