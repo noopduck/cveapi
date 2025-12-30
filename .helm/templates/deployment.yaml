@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cveapi.fullname" . }}
+  labels:
+    {{- include "cveapi.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cveapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cveapi.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
+      serviceAccountName: {{ default (include "cveapi.fullname" .) .Values.serviceAccount.name }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: cvelist-sync
+          image: "{{ .Values.gitRepo.image }}"
+          imagePullPolicy: {{ .Values.gitRepo.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.gitRepo.securityContext | nindent 12 }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              mkdir -p "{{ .Values.gitRepo.targetPath }}"
+              if [ -d "{{ .Values.gitRepo.targetPath }}/.git" ]; then
+                git -C "{{ .Values.gitRepo.targetPath }}" fetch --all --prune
+                git -C "{{ .Values.gitRepo.targetPath }}" reset --hard "origin/{{ .Values.gitRepo.branch }}"
+              else
+                git clone --branch "{{ .Values.gitRepo.branch }}" --depth 1 "{{ .Values.gitRepo.url }}" "{{ .Values.gitRepo.targetPath }}"
+              fi
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+          resources:
+            {{- toYaml .Values.gitRepo.resources | nindent 12 }}
+      containers:
+        - name: cveapi
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.image.command }}
+          command: {{ toYaml .Values.image.command | nindent 10 }}
+          {{- end }}
+          {{- if .Values.image.args }}
+          args: {{ toYaml .Values.image.args | nindent 10 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.json
+              subPath: config.json
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+        - name: cvelist-pull
+          image: "{{ .Values.gitRepo.image }}"
+          imagePullPolicy: {{ .Values.gitRepo.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.gitRepo.securityContext | nindent 12 }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              while true; do
+                if [ -d "{{ .Values.gitRepo.targetPath }}/.git" ]; then
+                  git -C "{{ .Values.gitRepo.targetPath }}" fetch --all --prune
+                  git -C "{{ .Values.gitRepo.targetPath }}" reset --hard "origin/{{ .Values.gitRepo.branch }}"
+                else
+                  mkdir -p "$(dirname "{{ .Values.gitRepo.targetPath }}")"
+                  rm -rf "{{ .Values.gitRepo.targetPath }}"
+                  git clone --branch "{{ .Values.gitRepo.branch }}" --depth 1 "{{ .Values.gitRepo.url }}" "{{ .Values.gitRepo.targetPath }}"
+                fi
+                sleep {{ .Values.gitRepo.pullIntervalSeconds }}
+              done
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+          resources:
+            {{- toYaml .Values.gitRepo.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "cveapi.fullname" . }}-config
+            items:
+              - key: config.json
+                path: config.json
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "cveapi.fullname" . }}-data
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
