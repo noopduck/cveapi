@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cveapi.fullname" . }}-config
+  labels:
+    {{- include "cveapi.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {{- $cfg := dict "ServerPort" .Values.config.ServerPort "EnableTLS" .Values.config.EnableTLS "CertFile" .Values.config.CertFile "KeyFile" .Values.config.KeyFile "BasePath" .Values.config.BasePath "IndexPath" .Values.config.IndexPath "StorePath" .Values.config.StorePath "AsyncIndex" .Values.config.AsyncIndex }}
+    {{- if .Values.config.IgnoreFiles }}
+    {{- $_ := set $cfg "IgnoreFiles" .Values.config.IgnoreFiles }}
+    {{- end }}
+    {{- $cfg | toPrettyJson | nindent 4 }}

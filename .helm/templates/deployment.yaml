@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cveapi.fullname" . }}
+  labels:
+    {{- include "cveapi.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.deploymentStrategy.type }}
+  selector:
+    matchLabels:
+      {{- include "cveapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cveapi.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
+      serviceAccountName: {{ default (include "cveapi.fullname" .) .Values.serviceAccount.name }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: cveapi
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.image.command }}
+          command: {{ toYaml .Values.image.command | nindent 10 }}
+          {{- end }}
+          {{- if .Values.image.args }}
+          args: {{ toYaml .Values.image.args | nindent 10 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.json
+              subPath: config.json
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "cveapi.fullname" . }}-config
+            items:
+              - key: config.json
+                path: config.json
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "cveapi.fullname" . }}-data
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}

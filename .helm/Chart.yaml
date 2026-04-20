@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cveapi
+description: Helm chart for deploying the CVE API service
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
