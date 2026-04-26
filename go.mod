@@ -1,6 +1,6 @@
 module cveapi
 
-go 1.25
+go 1.26.2
 
 require (
 	github.com/blevesearch/bleve/v2 v2.5.0
